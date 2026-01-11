@@ -1,0 +1,21 @@
+{
+  "name": "uni-voeux",
+  "version": "1.0.0",
+  "description": "Student wish allocation system.",
+  "main": "index.js",
+  "scripts": {
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "build:backend": "npm run build --workspace=backend",
+    "build:frontend": "npm run build --workspace=frontend"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "workspaces": [
+    "packages/*"
+  ],
+  "dependencies": {
+    "firebase": "^12.7.0"
+  }
+}
