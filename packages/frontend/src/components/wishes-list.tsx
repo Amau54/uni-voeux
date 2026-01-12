@@ -50,8 +50,6 @@ const WishesList = () => {
 
   const handleEditWish = (wish: Wish) => {
     setEditingWishId(wish.id);
-    setEditedName(wish.name);
-    setEditedPlaces(wish.places);
   };
 
   const handleUpdateWish = async (wishId: string, formData: Omit<Wish, 'id'>) => {

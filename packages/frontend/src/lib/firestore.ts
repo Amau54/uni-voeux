@@ -23,6 +23,13 @@ export interface Wish {
   [key: string]: any; // Allow for custom labels
 }
 
+// Define the structure of a Student object
+export interface Student {
+    id: string;
+    name: string;
+    rank: number;
+}
+
 // Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -49,6 +56,8 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
         }
     }
 }
+
+// --- Wishes CRUD ---
 
 /**
  * Fetches all wishes from the 'wishes' collection.
@@ -97,6 +106,57 @@ export const deleteWish = async (wishId: string): Promise<void> => {
 export const updateWish = async (wishId: string, wishData: Partial<Omit<Wish, 'id'>>): Promise<void> => {
     const wishDoc = doc(db, 'wishes', wishId);
     await updateDoc(wishDoc, wishData);
+};
+
+// --- Students CRUD ---
+
+/**
+ * Fetches all students from the 'students' collection.
+ * @returns {Promise<Student[]>} A promise that resolves to an array of students.
+ */
+export const getStudents = async (): Promise<Student[]> => {
+    const studentsCollection = collection(db, 'students');
+    const studentSnapshot = await getDocs(studentsCollection);
+    const studentList = studentSnapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => ({
+        id: doc.id,
+        ...doc.data(),
+    } as Student));
+    return studentList.sort((a, b) => a.rank - b.rank); // Sort by rank
+};
+
+/**
+ * Adds a new student to the 'students' collection.
+ * @param {Omit<Student, 'id'>} studentData - The data for the new student.
+ * @returns {Promise<Student>} A promise that resolves to the newly created student with their ID.
+ */
+export const addStudent = async (studentData: Omit<Student, 'id'>): Promise<Student> => {
+    const studentsCollection = collection(db, 'students');
+    const docRef = await addDoc(studentsCollection, studentData);
+    return {
+        id: docRef.id,
+        ...studentData,
+    };
+};
+
+/**
+ * Updates a student in the 'students' collection.
+ * @param {string} studentId - The ID of the student to update.
+ * @param {Partial<Omit<Student, 'id'>>} studentData - The data to update.
+ * @returns {Promise<void>} A promise that resolves when the student is updated.
+ */
+export const updateStudent = async (studentId: string, studentData: Partial<Omit<Student, 'id'>>): Promise<void> => {
+    const studentDoc = doc(db, 'students', studentId);
+    await updateDoc(studentDoc, studentData);
+};
+
+/**
+ * Deletes a student from the 'students' collection.
+ * @param {string} studentId - The ID of the student to delete.
+ * @returns {Promise<void>} A promise that resolves when the student is deleted.
+ */
+export const deleteStudent = async (studentId: string): Promise<void> => {
+    const studentDoc = doc(db, 'students', studentId);
+    await deleteDoc(studentDoc);
 };
 
 export { app, db, auth };
