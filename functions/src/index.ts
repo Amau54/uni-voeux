@@ -8,64 +8,90 @@ const db = admin.firestore();
  * Cloud Function déclenchable via HTTPS pour exécuter l'algorithme d'affectation.
  * Cette fonction doit être sécurisée pour n'être accessible que par les administrateurs.
  */
-export const runAllocationAlgorithm = functions.https.onRequest(async (request, response) => {
-    functions.logger.info("Début de l'algorithme d'affectation...", {structuredData: true});
+export const runAssignment = functions.https.onCall(async (data, context) => {
+    // Basic security check: ensure the user is authenticated.
+    // In a real app, you'd also check if they are an admin/professor.
+    if (!context.auth) {
+        throw new functions.https.HttpsError(
+            'unauthenticated',
+            'The function must be called while authenticated.'
+        );
+    }
+
+    functions.logger.info("Starting the assignment algorithm...", {structuredData: true});
 
     try {
-        // Étape 1 : Récupérer tous les étudiants, classés par leur rang.
-        const usersSnapshot = await db.collection("users").orderBy("rank").get();
-        const users = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const studentsSnapshot = await db.collection("students").orderBy("rank").get();
+        const students = studentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as { name: string; rank: number } }));
 
-        const allocationPromises = users.map(async (user) => {
-            // Pour chaque utilisateur, récupérer ses choix de vœux, triés par priorité.
-            const selectionsSnapshot = await db.collection("users").doc(user.id).collection("selections").orderBy("priority").get();
-            const selections = selectionsSnapshot.docs.map(doc => doc.data());
+        const wishesSnapshot = await db.collection("wishes").get();
+        const wishes: { [key: string]: { name: string; places: number; assignedStudents: string[] } } = {};
+        wishesSnapshot.forEach(doc => {
+            const wishData = doc.data();
+            wishes[doc.id] = {
+                name: wishData.name,
+                places: wishData.places,
+                assignedStudents: []
+            };
+        });
+
+        // Clear previous assignments
+        const assignmentsSnapshot = await db.collection("assignments").get();
+        const batch = db.batch();
+        assignmentsSnapshot.docs.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+        await batch.commit();
+        functions.logger.info("Previous assignments cleared.");
+
+        let unassignedStudents = 0;
+
+        for (const student of students) {
+            const studentWishesSnapshot = await db.collection("studentWishes").doc(student.id).get();
+            const studentWishesData = studentWishesSnapshot.data();
+            const wishIds = studentWishesData ? studentWishesData.wishes : [];
 
             let isAssigned = false;
 
-            for (const selection of selections) {
-                // Utiliser une transaction pour garantir une lecture/écriture atomique sur un vœu.
-                await db.runTransaction(async (transaction) => {
-                    if (isAssigned) return; // Si déjà assigné dans une transaction précédente, ne rien faire.
-
-                    const wishRef = db.collection("wishes").doc(selection.wishId);
-                    const wishDoc = await transaction.get(wishRef);
-                    if (!wishDoc.exists) return;
-
-                    const wish = wishDoc.data()!;
+            for (const wishId of wishIds) {
+                const wish = wishes[wishId];
+                if (wish && wish.assignedStudents.length < wish.places) {
+                    wish.assignedStudents.push(student.id);
                     
-                    // Étape 2 : Vérifier si le vœu a des places disponibles.
-                    if (wish.currentCapacity < wish.maxCapacity) {
-                        // Étape 3 : Affecter le vœu à l'étudiant.
-                        transaction.update(wishRef, { currentCapacity: admin.firestore.FieldValue.increment(1) });
-                        
-                        const userRef = db.collection("users").doc(user.id);
-                        transaction.update(userRef, { obtainedWishId: wish.id, status: "Validé" });
-                        
-                        isAssigned = true;
-                        functions.logger.info(`Utilisateur ${user.id} affecté au vœu ${wish.id}`);
-                    }
-                });
+                    const assignmentData = {
+                        studentId: student.id,
+                        studentName: student.name,
+                        studentRank: student.rank,
+                        wishId: wishId,
+                        wishName: wish.name,
+                    };
 
-                if (isAssigned) {
-                    break; // Sortir de la boucle des vœux pour cet utilisateur.
+                    await db.collection("assignments").add(assignmentData);
+                    isAssigned = true;
+                    functions.logger.info(`Student ${student.name} (Rank: ${student.rank}) assigned to Wish ${wish.name}`);
+                    break; // Move to the next student
                 }
             }
-
-            // Étape 4 : Gérer les étudiants non affectés.
             if (!isAssigned) {
-                const userRef = db.collection("users").doc(user.id);
-                await userRef.update({ status: "NON AFFECTÉ" });
-                functions.logger.warn(`Utilisateur ${user.id} n'a pas pu être affecté.`);
+                unassignedStudents++;
+                functions.logger.warn(`Student ${student.name} (Rank: ${student.rank}) could not be assigned.`);
             }
-        });
+        }
 
-        await Promise.all(allocationPromises);
+        const summary = {
+            totalStudents: students.length,
+            assignedStudents: students.length - unassignedStudents,
+            unassignedStudents: unassignedStudents,
+        };
 
-        response.status(200).send({ message: "Algorithme d'affectation terminé avec succès." });
+        functions.logger.info("Assignment algorithm finished successfully.", summary);
+        return { message: "Assignment algorithm finished successfully.", summary };
 
     } catch (error) {
-        functions.logger.error("Erreur lors de l'exécution de l'algorithme :", error);
-        response.status(500).send({ error: "Une erreur est survenue lors de l'affectation." });
+        functions.logger.error("Error running the assignment algorithm:", error);
+        throw new functions.https.HttpsError(
+            'internal',
+            'An error occurred while running the assignment.'
+        );
     }
 });

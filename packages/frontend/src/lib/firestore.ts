@@ -16,6 +16,7 @@ import {
     QueryDocumentSnapshot
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
+import { getFunctions, httpsCallable, connectFunctionsEmulator } from 'firebase/functions';
 
 // Define the structure of a Wish object
 export interface Wish {
@@ -32,6 +33,16 @@ export interface Student {
     rank: number;
 }
 
+// Define the structure of an Assignment object
+export interface Assignment {
+    id: string;
+    studentId: string;
+    studentName: string;
+    studentRank: number;
+    wishId: string;
+    wishName: string;
+}
+
 // Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -46,15 +57,17 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 const auth = getAuth(app);
+const functions = getFunctions(app);
 
-// Connect to Firestore Emulator in development
+// Connect to Emulators in development
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
     try {
         connectFirestoreEmulator(db, 'localhost', 8080);
-        console.log("Connected to Firestore Emulator");
+        connectFunctionsEmulator(functions, 'localhost', 5001);
+        console.log("Connected to Firestore and Functions Emulators");
     } catch (e) {
         if (e.code !== 'failed-precondition') {
-            console.error("Error connecting to Firestore Emulator:", e);
+            console.error("Error connecting to Emulators:", e);
         }
     }
 }
@@ -186,6 +199,32 @@ export const getStudentWishes = async (studentId: string): Promise<string[] | nu
         return docSnap.data().wishes as string[];
     }
     return null;
+};
+
+// --- Assignment ---
+
+/**
+ * Triggers the runAssignment Cloud Function.
+ * @returns {Promise<any>} The result from the Cloud Function.
+ */
+export const runAssignment = async (): Promise<any> => {
+    const runAssignmentFunction = httpsCallable(functions, 'runAssignment');
+    const result = await runAssignmentFunction();
+    return result.data;
+};
+
+/**
+ * Fetches all assignments from the 'assignments' collection.
+ * @returns {Promise<Assignment[]>} A promise that resolves to an array of assignments.
+ */
+export const getAssignments = async (): Promise<Assignment[]> => {
+    const assignmentsCollection = collection(db, 'assignments');
+    const assignmentSnapshot = await getDocs(assignmentsCollection);
+    const assignmentList = assignmentSnapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => ({
+        id: doc.id,
+        ...doc.data(),
+    } as Assignment));
+    return assignmentList.sort((a, b) => a.studentRank - b.studentRank);
 };
 
 export { app, db, auth };
