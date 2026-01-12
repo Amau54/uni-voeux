@@ -21,7 +21,7 @@ const StudentsList = () => {
       try {
         const studentsData = await getStudents();
         setStudents(studentsData);
-        setNewStudentRank(studentsData.length + 1);
+        setNewStudentRank(Math.max(0, ...studentsData.map(s => s.rank)) + 1);
       } catch (err) {
         setError('Failed to fetch students. Please try again later.');
         console.error(err);
@@ -43,7 +43,7 @@ const StudentsList = () => {
       const updatedStudents = await getStudents();
       setStudents(updatedStudents);
       setNewStudentName('');
-      setNewStudentRank(updatedStudents.length + 1);
+      setNewStudentRank(Math.max(0, ...updatedStudents.map(s => s.rank)) + 1);
     } catch (err) {
       setError('Failed to add student.');
       console.error(err);

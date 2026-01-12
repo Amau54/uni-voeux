@@ -9,6 +9,8 @@ import {
     deleteDoc,
     doc,
     updateDoc,
+    setDoc,
+    getDoc,
     connectFirestoreEmulator,
     DocumentData,
     QueryDocumentSnapshot
@@ -157,6 +159,33 @@ export const updateStudent = async (studentId: string, studentData: Partial<Omit
 export const deleteStudent = async (studentId: string): Promise<void> => {
     const studentDoc = doc(db, 'students', studentId);
     await deleteDoc(studentDoc);
+};
+
+// --- Student Wish Selection ---
+
+/**
+ * Saves a student's wish selection.
+ * @param {string} studentId - The ID of the student.
+ * @param {string[]} wishIds - An ordered array of wish IDs.
+ * @returns {Promise<void>}
+ */
+export const saveStudentWishes = async (studentId: string, wishIds: string[]): Promise<void> => {
+    const studentWishesDoc = doc(db, 'studentWishes', studentId);
+    await setDoc(studentWishesDoc, { wishes: wishIds });
+};
+
+/**
+ * Gets a student's wish selection.
+ * @param {string} studentId - The ID of the student.
+ * @returns {Promise<string[] | null>} A promise that resolves to an array of wish IDs or null if not found.
+ */
+export const getStudentWishes = async (studentId: string): Promise<string[] | null> => {
+    const studentWishesDoc = doc(db, 'studentWishes', studentId);
+    const docSnap = await getDoc(studentWishesDoc);
+    if (docSnap.exists()) {
+        return docSnap.data().wishes as string[];
+    }
+    return null;
 };
 
 export { app, db, auth };
