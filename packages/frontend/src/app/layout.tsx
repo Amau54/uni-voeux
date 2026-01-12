@@ -1,5 +1,6 @@
 import React from 'react';
-import './globals.css'; // On créera ce fichier juste après ou on le commente pour l'instant
+import './globals.css';
+import { AuthProvider } from '../contexts/AuthContext';
 
 export const metadata = {
   title: 'Uni-Voeux',
@@ -13,7 +14,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr">
-      <body>{children}</body>
+      <body>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
     </html>
   );
 }

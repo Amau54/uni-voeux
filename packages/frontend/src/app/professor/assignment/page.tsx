@@ -1,5 +1,7 @@
 // packages/frontend/src/app/professor/assignment/page.tsx
+'use client';
 import AssignmentView from '../../../components/AssignmentView';
+import withProfessorAuth from '../../../components/withProfessorAuth';
 
 const ProfessorAssignmentPage = () => {
   return (
@@ -15,4 +17,4 @@ const ProfessorAssignmentPage = () => {
   );
 };
 
-export default ProfessorAssignmentPage;
+export default withProfessorAuth(ProfessorAssignmentPage);

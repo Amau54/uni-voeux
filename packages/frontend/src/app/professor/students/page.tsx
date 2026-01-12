@@ -1,5 +1,7 @@
 // packages/frontend/src/app/professor/students/page.tsx
+'use client';
 import StudentsList from '../../../components/students-list';
+import withProfessorAuth from '../../../components/withProfessorAuth';
 
 const ProfessorStudentsPage = () => {
   return (
@@ -15,4 +17,4 @@ const ProfessorStudentsPage = () => {
   );
 };
 
-export default ProfessorStudentsPage;
+export default withProfessorAuth(ProfessorStudentsPage);

@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Papa from 'papaparse';
 import { runAssignment, getAssignments, Assignment } from '../lib/firestore';
 
 const AssignmentView = () => {
@@ -45,6 +46,24 @@ const AssignmentView = () => {
 
     if (loading) return <p>Loading assignments...</p>;
 
+  const handleExport = () => {
+    const csvData = assignments.map(a => ({
+        'Student Rank': a.studentRank,
+        'Student Name': a.studentName,
+        'Assigned Wish': a.wishName,
+    }));
+    const csv = Papa.unparse(csvData);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'assignments.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
     return (
         <div className="space-y-8">
             <div>
@@ -69,7 +88,16 @@ const AssignmentView = () => {
             )}
 
             <div className="overflow-x-auto">
-                <h2 className="text-xl font-semibold mb-4">Assignment Results</h2>
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-semibold">Assignment Results</h2>
+                    <button
+                        onClick={handleExport}
+                        disabled={assignments.length === 0}
+                        className="px-4 py-2 bg-gray-600 text-white font-semibold rounded-md hover:bg-gray-700 disabled:bg-gray-400"
+                    >
+                        Export to CSV
+                    </button>
+                </div>
                 <table className="min-w-full bg-white border">
                     <thead>
                         <tr>

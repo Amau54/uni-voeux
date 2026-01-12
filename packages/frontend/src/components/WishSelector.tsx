@@ -4,12 +4,10 @@
 import { useState, useEffect } from 'react';
 import { getWishes, saveStudentWishes, getStudentWishes, Wish } from '../lib/firestore';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
-
-// A mock student ID. In a real application, this would come from the authentication context.
-// This is acceptable for development but will need to be replaced with a proper authentication context to be production-ready.
-const MOCK_STUDENT_ID = 'student123';
+import { useAuth } from '../contexts/AuthContext';
 
 const WishSelector = () => {
+  const { user, loading: authLoading } = useAuth();
   const [availableWishes, setAvailableWishes] = useState<Wish[]>([]);
   const [selectedWishes, setSelectedWishes] = useState<Wish[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,13 +15,19 @@ const WishSelector = () => {
   const [isLocked, setIsLocked] = useState(false);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+        setLoading(false);
+        setError("Please log in to select your wishes.");
+        return;
+    }
+
     const fetchData = async () => {
       try {
         const allWishes = await getWishes();
-        const savedWishIds = await getStudentWishes(MOCK_STUDENT_ID);
+        const savedWishIds = await getStudentWishes(user.uid);
 
         if (savedWishIds) {
-          // If wishes are already saved, populate the selected list and lock the UI
           const savedWishes = savedWishIds.map(id => allWishes.find(w => w.id === id)).filter(Boolean) as Wish[];
           setSelectedWishes(savedWishes);
           setIsLocked(true);
@@ -38,7 +42,7 @@ const WishSelector = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [user, authLoading]);
 
   const handleSelectWish = (wish: Wish) => {
     if (selectedWishes.length < 9 && !selectedWishes.some(w => w.id === wish.id)) {
@@ -59,13 +63,17 @@ const WishSelector = () => {
   };
   
   const handleSubmit = async () => {
+    if (!user) {
+        setError("You must be logged in to submit.");
+        return;
+    }
     if (selectedWishes.length !== 9) {
       setError('You must select exactly 9 wishes.');
       return;
     }
     try {
       const wishIds = selectedWishes.map(w => w.id);
-      await saveStudentWishes(MOCK_STUDENT_ID, wishIds);
+      await saveStudentWishes(user.uid, wishIds);
       setIsLocked(true);
       setError(null);
     } catch (err) {
@@ -74,7 +82,7 @@ const WishSelector = () => {
     }
   };
 
-  if (loading) return <p>Loading...</p>;
+  if (loading || authLoading) return <p>Loading...</p>;
   if (error) return <p className="text-red-500">{error}</p>;
 
   if (isLocked) {

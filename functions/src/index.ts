@@ -5,16 +5,36 @@ admin.initializeApp();
 const db = admin.firestore();
 
 /**
+ * Sets a custom user claim to define a user as a professor.
+ * This function should be secured to only be callable by an admin in a real application.
+ */
+export const setProfessorRole = functions.https.onCall(async (data, context) => {
+    // For now, this is open to any authenticated user for testing purposes.
+    // In a production app, you would check if the caller has an 'admin' role.
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
+    }
+
+    const email = data.email;
+    try {
+        const user = await admin.auth().getUserByEmail(email);
+        await admin.auth().setCustomUserClaims(user.uid, { professor: true });
+        return { message: `Success! ${email} has been made a professor.` };
+    } catch (error) {
+        functions.logger.error("Error setting professor role:", error);
+        throw new functions.https.HttpsError('internal', 'An error occurred while setting the role.');
+    }
+});
+
+/**
  * Cloud Function déclenchable via HTTPS pour exécuter l'algorithme d'affectation.
  * Cette fonction doit être sécurisée pour n'être accessible que par les administrateurs.
  */
 export const runAssignment = functions.https.onCall(async (data, context) => {
-    // Basic security check: ensure the user is authenticated.
-    // In a real app, you'd also check if they are an admin/professor.
-    if (!context.auth) {
+    if (!context.auth || !context.auth.token.professor) {
         throw new functions.https.HttpsError(
-            'unauthenticated',
-            'The function must be called while authenticated.'
+            'permission-denied',
+            'The function must be called by a professor.'
         );
     }
 

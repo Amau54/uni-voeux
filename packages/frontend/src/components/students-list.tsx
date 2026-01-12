@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { getStudents, addStudent, updateStudent, deleteStudent, Student } from '../lib/firestore';
+import EditStudentWishesModal from './EditStudentWishesModal';
 
 const StudentsList = () => {
   const [students, setStudents] = useState<Student[]>([]);
@@ -15,6 +16,8 @@ const StudentsList = () => {
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
   const [editedStudentName, setEditedStudentName] = useState('');
   const [editedStudentRank, setEditedStudentRank] = useState(0);
+
+  const [studentToEditWishes, setStudentToEditWishes] = useState<Student | null>(null);
 
   useEffect(() => {
     const fetchStudents = async () => {
@@ -154,6 +157,9 @@ const StudentsList = () => {
                       <button onClick={() => handleEditStudent(student)} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
                         Edit
                       </button>
+                      <button onClick={() => setStudentToEditWishes(student)} className="ml-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
+                        Edit Wishes
+                      </button>
                       <button onClick={() => handleDeleteStudent(student.id)} className="ml-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
                         Delete
                       </button>
@@ -165,6 +171,12 @@ const StudentsList = () => {
           </tbody>
         </table>
       </div>
+      {studentToEditWishes && (
+        <EditStudentWishesModal
+            student={studentToEditWishes}
+            onClose={() => setStudentToEditWishes(null)}
+        />
+      )}
     </div>
   );
 };

@@ -1,5 +1,7 @@
 // packages/frontend/src/app/professor/wishes/page.tsx
+'use client';
 import WishesList from '../../../components/wishes-list';
+import withProfessorAuth from '../../../components/withProfessorAuth';
 
 const ProfessorWishesPage = () => {
   return (
@@ -16,4 +18,4 @@ const ProfessorWishesPage = () => {
   );
 };
 
-export default ProfessorWishesPage;
+export default withProfessorAuth(ProfessorWishesPage);
