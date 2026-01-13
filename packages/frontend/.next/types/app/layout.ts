@@ -1,4 +1,4 @@
-// File: C:\Users\amaur\Documents\Applications créations\Uni-voeux\packages\frontend\src\app\layout.tsx
+// File: /app/packages/frontend/src/app/layout.tsx
 import * as entry from '../../../src/app/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

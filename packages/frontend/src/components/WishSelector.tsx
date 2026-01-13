@@ -2,14 +2,14 @@
 'use client'; // Important pour Next.js App Router
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { useAuth } from '../lib/AuthContext';
 // CORRECTION ICI : Le chemin vers lib est maintenant "../lib/firebase"
 import { db } from '../lib/firebase';
 import { collection, getDocs, doc, writeBatch } from 'firebase/firestore';
 
-// Note: L'ID de l'utilisateur devrait provenir du contexte d'authentification.
-const MOCK_USER_ID = "user_test_id";
-
 const WishSelector = () => {
+  const { currentUser } = useAuth();
   const [wishes, setWishes] = useState<any[]>([]); // Ajout de typage basique pour éviter erreurs TS
   const [selectedWishes, setSelectedWishes] = useState<any[]>([]);
   const [sortOrder, setSortOrder] = useState('capacity');
@@ -52,8 +52,24 @@ const WishSelector = () => {
   const handleRemoveWish = (wishToRemove: any) => {
     setSelectedWishes(selectedWishes.filter(wish => wish.id !== wishToRemove.id));
   };
+
+  const onDragEnd = (result: DropResult) => {
+    const { source, destination } = result;
+    if (!destination) return;
+
+    const items = Array.from(selectedWishes);
+    const [reorderedItem] = items.splice(source.index, 1);
+    items.splice(destination.index, 0, reorderedItem);
+
+    setSelectedWishes(items);
+  };
   
   const handleValidate = async () => {
+    if (!currentUser) {
+      alert("Veuillez vous connecter pour valider vos vœux.");
+      return;
+    }
+
     if (selectedWishes.length === 0) {
       alert("Veuillez sélectionner au moins un vœu.");
       return;
@@ -61,7 +77,7 @@ const WishSelector = () => {
 
     try {
       const batch = writeBatch(db);
-      const userSelectionsRef = collection(db, 'users', MOCK_USER_ID, 'selections');
+      const userSelectionsRef = collection(db, 'users', currentUser.uid, 'selections');
 
       // Ajouter chaque sélection au batch
       selectedWishes.forEach((wish, index) => {
@@ -73,7 +89,7 @@ const WishSelector = () => {
       });
       
       // Mettre à jour le statut de l'utilisateur
-      const userRef = doc(db, 'users', MOCK_USER_ID);
+      const userRef = doc(db, 'users', currentUser.uid);
       batch.update(userRef, { status: 'Validé' });
 
       await batch.commit();
@@ -129,20 +145,36 @@ const WishSelector = () => {
         {/* Colonne du panier de sélection */}
         <div>
           <h2 className="text-xl font-semibold mb-2">Votre Sélection (1 à 9 vœux)</h2>
-          <div className="border p-2 rounded-lg h-96 overflow-y-auto">
-            {selectedWishes.length === 0 ? (
-                <p className="text-gray-500 text-center mt-4">Glissez vos vœux ici</p>
-            ) : (
-                selectedWishes.map((wish, index) => (
-                    <div key={wish.id} className="p-2 border-b flex justify-between items-center">
-                        <div>
-                            <p><span className="font-bold">{index + 1}.</span> {wish.title}</p>
-                        </div>
-                        <button onClick={() => handleRemoveWish(wish)} className="bg-red-500 text-white p-1 rounded">-</button>
-                    </div>
-                ))
-            )}
-          </div>
+          <DragDropContext onDragEnd={onDragEnd}>
+            <Droppable droppableId="wishes">
+              {(provided) => (
+                <div {...provided.droppableProps} ref={provided.innerRef} className="border p-2 rounded-lg h-96 overflow-y-auto">
+                  {selectedWishes.length === 0 ? (
+                      <p className="text-gray-500 text-center mt-4">Glissez vos vœux ici</p>
+                  ) : (
+                      selectedWishes.map((wish, index) => (
+                        <Draggable key={wish.id} draggableId={wish.id} index={index}>
+                          {(provided) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              className="p-2 border-b flex justify-between items-center"
+                            >
+                              <div>
+                                <p><span className="font-bold">{index + 1}.</span> {wish.title}</p>
+                              </div>
+                              <button onClick={() => handleRemoveWish(wish)} className="bg-red-500 text-white p-1 rounded">-</button>
+                            </div>
+                          )}
+                        </Draggable>
+                      ))
+                  )}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
         </div>
       </div>
 

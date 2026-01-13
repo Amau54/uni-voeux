@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../../lib/firebase';
+import { db, functions } from '../lib/firebase'; // Assurez-vous d'exporter 'functions' depuis votre config firebase
+import { httpsCallable } from 'firebase/functions';
 import { collection, getDocs } from 'firebase/firestore';
 
 const Dashboard = () => {
@@ -32,6 +33,20 @@ const Dashboard = () => {
     fetchData();
   }, []);
 
+  const handleRunAlgorithm = async () => {
+    // setLoading(true); // Idéalement, gérer un état de chargement spécifique
+    const runAllocation = httpsCallable(functions, 'runAllocationAlgorithm');
+    try {
+      await runAllocation();
+      alert('Algorithme exécuté avec succès !');
+      // Re-fetch data to show results
+    } catch (error) {
+      console.error("Erreur lors de l'exécution de l'algorithme:", error);
+      alert('Une erreur est survenue.');
+    }
+    // setLoading(false);
+  };
+
   const isCapacityInsufficient = totalCapacity < totalStudents;
 
   if (isLoading) {
@@ -41,6 +56,15 @@ const Dashboard = () => {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-4">Tableau de Bord Professeur</h1>
+
+      <div className="mb-4">
+        <button
+          onClick={handleRunAlgorithm}
+          className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700"
+        >
+          Lancer l'Algorithme d'Affectation
+        </button>
+      </div>
 
       {/* Règle 1.1 : Alerte de capacité */}
       {isCapacityInsufficient && (
