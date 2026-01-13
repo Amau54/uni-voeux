@@ -1,5 +1,5 @@
 import React from 'react';
-import './globals.css'; // On créera ce fichier juste après ou on le commente pour l'instant
+import './globals.css';
 
 export const metadata = {
   title: 'Uni-Voeux',
@@ -13,7 +13,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr">
-      <body>{children}</body>
+      <body>
+        <header className="bg-white shadow-md">
+          <nav className="container mx-auto px-6 py-4">
+            <h1 className="text-xl font-bold text-gray-800">Uni-Voeux</h1>
+          </nav>
+        </header>
+        <main className="container mx-auto px-6 py-8">
+          {children}
+        </main>
+      </body>
     </html>
   );
 }
