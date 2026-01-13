@@ -1,4 +1,4 @@
-// File: C:\Users\amaur\Documents\Applications créations\Uni-voeux\packages\frontend\src\app\page.tsx
+// File: /app/packages/frontend/src/app/page.tsx
 import * as entry from '../../../src/app/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
