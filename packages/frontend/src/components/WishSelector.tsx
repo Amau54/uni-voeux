@@ -1,16 +1,16 @@
 // Fichier : packages/frontend/src/components/WishSelector.tsx
-'use client'; // Important pour Next.js App Router
+'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-// CORRECTION ICI : Le chemin vers lib est maintenant "../lib/firebase"
 import { db } from '../lib/firebase';
 import { collection, getDocs, doc, writeBatch } from 'firebase/firestore';
-
-// Note: L'ID de l'utilisateur devrait provenir du contexte d'authentification.
-const MOCK_USER_ID = "user_test_id";
+import { useAuth } from '../lib/auth';
+import Link from 'next/link';
+import toast from 'react-hot-toast';
 
 const WishSelector = () => {
-  const [wishes, setWishes] = useState<any[]>([]); // Ajout de typage basique pour éviter erreurs TS
+  const { currentUser } = useAuth();
+  const [wishes, setWishes] = useState<any[]>([]);
   const [selectedWishes, setSelectedWishes] = useState<any[]>([]);
   const [sortOrder, setSortOrder] = useState('capacity');
   const [isLoading, setIsLoading] = useState(true);
@@ -20,10 +20,14 @@ const WishSelector = () => {
       setIsLoading(true);
       try {
         const wishesSnapshot = await getDocs(collection(db, 'wishes'));
-        const wishesList = wishesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const wishesList = wishesSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
         setWishes(wishesList);
       } catch (error) {
-        console.error("Erreur lecture vœux:", error);
+        console.error('Erreur lecture vœux:', error);
+        toast.error('Erreur lors du chargement des vœux.');
       }
       setIsLoading(false);
     };
@@ -32,38 +36,58 @@ const WishSelector = () => {
   }, []);
 
   const sortedWishes = useMemo(() => {
-    // @ts-ignore
-    const availableWishes = wishes.filter(w => !selectedWishes.find(sw => sw.id === w.id));
-    
+    const availableWishes = wishes.filter(
+      (w) => !selectedWishes.find((sw) => sw.id === w.id)
+    );
+
     if (sortOrder === 'alpha') {
-      // @ts-ignore
-      return [...availableWishes].sort((a, b) => a.title.localeCompare(b.title));
+      return [...availableWishes].sort((a, b) =>
+        a.title.localeCompare(b.title)
+      );
     }
-    // @ts-ignore
-    return [...availableWishes].sort((a, b) => (b.maxCapacity - b.currentCapacity) - (a.maxCapacity - a.currentCapacity));
+    return [...availableWishes].sort(
+      (a, b) =>
+        b.maxCapacity -
+        b.currentCapacity -
+        (a.maxCapacity - a.currentCapacity)
+    );
   }, [wishes, selectedWishes, sortOrder]);
 
   const handleSelectWish = (wish: any) => {
     if (selectedWishes.length < 9) {
       setSelectedWishes([...selectedWishes, wish]);
+      toast.success(`${wish.title} ajouté à votre sélection.`);
+    } else {
+      toast.error('Vous ne pouvez pas sélectionner plus de 9 vœux.');
     }
   };
 
   const handleRemoveWish = (wishToRemove: any) => {
-    setSelectedWishes(selectedWishes.filter(wish => wish.id !== wishToRemove.id));
+    setSelectedWishes(
+      selectedWishes.filter((wish) => wish.id !== wishToRemove.id)
+    );
+    toast.success(`${wishToRemove.title} retiré de votre sélection.`);
   };
-  
+
   const handleValidate = async () => {
+    if (!currentUser) {
+      toast.error('Vous devez être connecté pour valider vos vœux.');
+      return;
+    }
     if (selectedWishes.length === 0) {
-      alert("Veuillez sélectionner au moins un vœu.");
+      toast.error('Veuillez sélectionner au moins un vœu.');
       return;
     }
 
     try {
       const batch = writeBatch(db);
-      const userSelectionsRef = collection(db, 'users', MOCK_USER_ID, 'selections');
+      const userSelectionsRef = collection(
+        db,
+        'users',
+        currentUser.uid,
+        'selections'
+      );
 
-      // Ajouter chaque sélection au batch
       selectedWishes.forEach((wish, index) => {
         const selectionDocRef = doc(userSelectionsRef, wish.id);
         batch.set(selectionDocRef, {
@@ -71,21 +95,33 @@ const WishSelector = () => {
           priority: index + 1,
         });
       });
-      
-      // Mettre à jour le statut de l'utilisateur
-      const userRef = doc(db, 'users', MOCK_USER_ID);
+
+      const userRef = doc(db, 'users', currentUser.uid);
       batch.update(userRef, { status: 'Validé' });
 
       await batch.commit();
-      alert(`Vous avez validé ${selectedWishes.length} vœux. Votre profil est maintenant verrouillé.`);
+      toast.success(
+        `Vous avez validé ${selectedWishes.length} vœux. Votre profil est maintenant verrouillé.`
+      );
     } catch (error) {
-      console.error("Erreur lors de la validation des vœux:", error);
-      alert("Une erreur est survenue. Veuillez réessayer.");
+      console.error('Erreur lors de la validation des vœux:', error);
+      toast.error('Une erreur est survenue. Veuillez réessayer.');
     }
   };
 
   if (isLoading) {
     return <div>Chargement des vœux...</div>;
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="text-center p-8">
+        <p>Vous devez être connecté pour accéder à cette page.</p>
+        <Link href="/login" className="text-blue-600 hover:underline">
+          Se connecter
+        </Link>
+      </div>
+    );
   }
 
   return (

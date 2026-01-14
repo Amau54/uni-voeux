@@ -1,5 +1,7 @@
 import React from 'react';
-import './globals.css'; // On créera ce fichier juste après ou on le commente pour l'instant
+import { AuthProvider } from '../lib/auth';
+import { Toaster } from 'react-hot-toast';
+import './globals.css';
 
 export const metadata = {
   title: 'Uni-Voeux',
@@ -13,7 +15,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr">
-      <body>{children}</body>
+      <body>
+        <AuthProvider>
+          <Toaster position="bottom-center" />
+          {children}
+        </AuthProvider>
+      </body>
     </html>
   );
 }
