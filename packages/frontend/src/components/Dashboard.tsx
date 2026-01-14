@@ -46,7 +46,7 @@ const Dashboard = () => {
       {isCapacityInsufficient && (
         <div className="bg-red-500 text-white p-4 rounded-md mb-4">
           <h2 className="text-lg font-semibold">ALERTE ROUGE</h2>
-          <p>Capacité totale insuffisante. Risque d'étudiants sans affectation.</p>
+          <p>Capacité totale insuffisante. Risque d&apos;étudiants sans affectation.</p>
         </div>
       )}
 
