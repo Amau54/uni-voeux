@@ -4,10 +4,10 @@
   "description": "Student wish allocation system.",
   "main": "index.js",
   "scripts": {
-    "dev:backend": "npm run dev --workspace=backend",
-    "dev:frontend": "npm run dev --workspace=frontend",
-    "build:backend": "npm run build --workspace=backend",
-    "build:frontend": "npm run build --workspace=frontend"
+    "dev:backend": "pnpm --filter functions dev",
+    "dev:frontend": "pnpm --filter frontend dev",
+    "build:backend": "pnpm --filter functions build",
+    "build:frontend": "pnpm --filter frontend build"
   },
   "keywords": [],
   "author": "",
