@@ -5,11 +5,23 @@ admin.initializeApp();
 const db = admin.firestore();
 
 /**
- * Cloud Function déclenchable via HTTPS pour exécuter l'algorithme d'affectation.
- * Cette fonction doit être sécurisée pour n'être accessible que par les administrateurs.
+ * Cloud Function appelable pour exécuter l'algorithme d'affectation.
+ * Seuls les administrateurs peuvent exécuter cette fonction.
  */
-export const runAllocationAlgorithm = functions.https.onRequest(async (request, response) => {
-    functions.logger.info("Début de l'algorithme d'affectation...", {structuredData: true});
+export const runAllocationAlgorithm = functions.https.onCall(async (data, context) => {
+    // Vérifier l'authentification et le rôle de l'utilisateur
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Vous devez être connecté pour effectuer cette action.');
+    }
+
+    const userId = context.auth.uid;
+    const userDoc = await db.collection('users').doc(userId).get();
+
+    if (!userDoc.exists || userDoc.data()?.role !== 'admin') {
+        throw new functions.https.HttpsError('permission-denied', 'Vous devez être administrateur pour effectuer cette action.');
+    }
+
+    functions.logger.info("Début de l'algorithme d'affectation...", { structuredData: true });
 
     try {
         // Étape 1 : Récupérer tous les étudiants, classés par leur rang.
@@ -24,9 +36,8 @@ export const runAllocationAlgorithm = functions.https.onRequest(async (request, 
             let isAssigned = false;
 
             for (const selection of selections) {
-                // Utiliser une transaction pour garantir une lecture/écriture atomique sur un vœu.
                 await db.runTransaction(async (transaction) => {
-                    if (isAssigned) return; // Si déjà assigné dans une transaction précédente, ne rien faire.
+                    if (isAssigned) return;
 
                     const wishRef = db.collection("wishes").doc(selection.wishId);
                     const wishDoc = await transaction.get(wishRef);
@@ -34,25 +45,20 @@ export const runAllocationAlgorithm = functions.https.onRequest(async (request, 
 
                     const wish = wishDoc.data()!;
                     
-                    // Étape 2 : Vérifier si le vœu a des places disponibles.
                     if (wish.currentCapacity < wish.maxCapacity) {
-                        // Étape 3 : Affecter le vœu à l'étudiant.
                         transaction.update(wishRef, { currentCapacity: admin.firestore.FieldValue.increment(1) });
                         
                         const userRef = db.collection("users").doc(user.id);
-                        transaction.update(userRef, { obtainedWishId: wish.id, status: "Validé" });
+                        transaction.update(userRef, { obtainedWishId: wish.id, status: "Affecté" });
                         
                         isAssigned = true;
                         functions.logger.info(`Utilisateur ${user.id} affecté au vœu ${wish.id}`);
                     }
                 });
 
-                if (isAssigned) {
-                    break; // Sortir de la boucle des vœux pour cet utilisateur.
-                }
+                if (isAssigned) break;
             }
 
-            // Étape 4 : Gérer les étudiants non affectés.
             if (!isAssigned) {
                 const userRef = db.collection("users").doc(user.id);
                 await userRef.update({ status: "NON AFFECTÉ" });
@@ -62,10 +68,10 @@ export const runAllocationAlgorithm = functions.https.onRequest(async (request, 
 
         await Promise.all(allocationPromises);
 
-        response.status(200).send({ message: "Algorithme d'affectation terminé avec succès." });
+        return { message: "Algorithme d'affectation terminé avec succès." };
 
     } catch (error) {
         functions.logger.error("Erreur lors de l'exécution de l'algorithme :", error);
-        response.status(500).send({ error: "Une erreur est survenue lors de l'affectation." });
+        throw new functions.https.HttpsError('internal', "Une erreur est survenue lors de l'affectation.");
     }
 });
